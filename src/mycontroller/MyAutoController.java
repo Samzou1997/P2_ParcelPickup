@@ -53,15 +53,17 @@ public class MyAutoController extends CarController{
 			}
 			
 			if (targetPosition != null) {
-				moveToParcel(targetPosition);
-				isFollowingWall = false;
-				if (checkWallAhead(getOrientation(), currentView)) {
-					targetPosition = null;
-				}
+				System.out.printf("======APROCHING MODE=======\n");
+				moveToParcel(targetPosition, currentView);
+				
+				System.out.printf("-------------%s----------------\n", isFollowingWall);
+				
 				//System.out.printf("!!!!!!!!!!!");
 			}
 			else {
+				System.out.printf("======SEARCHING MODE=======\n");
 				if (isFollowingWall) {
+					System.out.printf("===Following===\n");
 					// If wall no longer on left, turn left
 					if(!checkFollowingWall(getOrientation(), currentView)) {
 						turnLeft();
@@ -72,6 +74,7 @@ public class MyAutoController extends CarController{
 						}
 					}
 				} else {
+					System.out.printf("===NOT Following===\n");
 					// Start wall-following (with wall on left) as soon as we see a wall straight ahead
 					if(checkWallAhead(getOrientation(),currentView)) {
 						turnRight();
@@ -81,7 +84,7 @@ public class MyAutoController extends CarController{
 			}
 		}
 		
-		private void moveToParcel(Coordinate parcelCoord) {
+		private void moveToParcel(Coordinate parcelCoord, HashMap<Coordinate, MapTile> currentView) {
 			WorldSpatial.Direction directionOfParcelOnX = null;
 			WorldSpatial.Direction directionOfParcelOnY = null;
 			WorldSpatial.Direction currentDirection = getOrientation();
@@ -101,44 +104,62 @@ public class MyAutoController extends CarController{
 				directionOfParcelOnY = WorldSpatial.Direction.SOUTH;
 			}
 			
-			
+			if (checkWallAhead(currentDirection, currentView) && !checkFollowingWall(currentDirection, currentView) && !checkWallOnRight(currentDirection, currentView)) {
+				turnLeft();
+				isFollowingWall = false;
+			}
+			if (checkWallAhead(currentDirection, currentView) && checkFollowingWall(currentDirection, currentView)) {
+				turnRight();
+				isFollowingWall = true;
+			}
+			if (checkWallAhead(currentDirection, currentView) && checkWallOnRight(currentDirection, currentView)) {
+				turnLeft();
+			}
 			
 			if (directionOfParcelOnX == null) {
 				if (currentPosition.y < parcelCoord.y) {
-					if (currentDirection == WorldSpatial.Direction.EAST) {
+					if (currentDirection == WorldSpatial.Direction.EAST && checkFollowingWall(currentDirection, currentView) == false) {
 						turnLeft();
+						isFollowingWall = false;
 					}
-					else if (currentDirection == WorldSpatial.Direction.WEST) {
+					else if (currentDirection == WorldSpatial.Direction.WEST && checkWallOnRight(currentDirection, currentView) == false) {
 						turnRight();
+						isFollowingWall = false;
 					}
 				}
 				
 				if (currentPosition.y > parcelCoord.y) {
-					if (currentDirection == WorldSpatial.Direction.EAST) {
+					if (currentDirection == WorldSpatial.Direction.EAST && checkWallOnRight(currentDirection, currentView) == false) {
 						turnRight();
+						isFollowingWall = false;
 					}
-					else if (currentDirection == WorldSpatial.Direction.WEST) {
+					else if (currentDirection == WorldSpatial.Direction.WEST && checkFollowingWall(currentDirection, currentView) == false) {
 						turnLeft();
+						isFollowingWall = false;
 					}
 				}
 			}
 			
 			if (directionOfParcelOnY == null) {
 				if (currentPosition.x < parcelCoord.x) {
-					if (currentDirection == WorldSpatial.Direction.NORTH) {
+					if (currentDirection == WorldSpatial.Direction.NORTH && checkWallOnRight(currentDirection, currentView) == false) {
 						turnRight();
+						isFollowingWall = false;
 					}
-					else if (currentDirection == WorldSpatial.Direction.SOUTH) {
+					else if (currentDirection == WorldSpatial.Direction.SOUTH && checkFollowingWall(currentDirection, currentView) == false) {
 						turnLeft();
+						isFollowingWall = false;
 					}
 				}
 				
 				if (currentPosition.x > parcelCoord.x) {
-					if (currentDirection == WorldSpatial.Direction.NORTH) {
+					if (currentDirection == WorldSpatial.Direction.NORTH && checkFollowingWall(currentDirection, currentView) == false) {
 						turnLeft();
+						isFollowingWall = false;
 					}
-					else if (currentDirection == WorldSpatial.Direction.SOUTH) {
+					else if (currentDirection == WorldSpatial.Direction.SOUTH && checkWallOnRight(currentDirection, currentView) == false) {
 						turnRight();
+						isFollowingWall = false;
 					}
 				}
 			}
@@ -175,13 +196,33 @@ public class MyAutoController extends CarController{
 			
 			switch(orientation){
 			case EAST:
+				//isFollowingWall = checkNorth(currentView);
 				return checkNorth(currentView);
 			case NORTH:
+				//isFollowingWall = checkNorth(currentView);
 				return checkWest(currentView);
 			case SOUTH:
+				//isFollowingWall = checkNorth(currentView);
 				return checkEast(currentView);
 			case WEST:
+				//isFollowingWall = checkNorth(currentView);
 				return checkSouth(currentView);
+			default:
+				return false;
+			}	
+		}
+		
+		private boolean checkWallOnRight(WorldSpatial.Direction orientation, HashMap<Coordinate, MapTile> currentView) {
+			
+			switch(orientation){
+			case EAST:
+				return checkSouth(currentView);
+			case NORTH:
+				return checkEast(currentView);
+			case SOUTH:
+				return checkWest(currentView);
+			case WEST:
+				return checkNorth(currentView);
 			default:
 				return false;
 			}	
