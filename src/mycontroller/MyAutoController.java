@@ -54,6 +54,10 @@ public class MyAutoController extends CarController{
 			
 			if (targetPosition != null) {
 				moveToParcel(targetPosition);
+				isFollowingWall = false;
+				if (checkWallAhead(getOrientation(), currentView)) {
+					targetPosition = null;
+				}
 				//System.out.printf("!!!!!!!!!!!");
 			}
 			else {
