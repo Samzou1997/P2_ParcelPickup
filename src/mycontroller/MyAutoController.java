@@ -97,22 +97,43 @@ public class MyAutoController extends CarController{
 				directionOfParcelOnY = WorldSpatial.Direction.SOUTH;
 			}
 			
-			if (currentDirection == directionOfParcelOnX || currentDirection == directionOfParcelOnY) {
-				//System.out.printf("!!!!!!!!!!!!");
-				if (directionOfParcelOnX == null || directionOfParcelOnY == null) {
-					System.out.printf("================");
-					if (parcelCoord.x > currentPosition.x) {
-						System.out.printf("TURN R!!!!!!!!!\n");
+			
+			
+			if (directionOfParcelOnX == null) {
+				if (currentPosition.y < parcelCoord.y) {
+					if (currentDirection == WorldSpatial.Direction.EAST) {
+						turnLeft();
+					}
+					else if (currentDirection == WorldSpatial.Direction.WEST) {
 						turnRight();
 					}
-					else if (parcelCoord.x < currentPosition.x) {
+				}
+				
+				if (currentPosition.y > parcelCoord.y) {
+					if (currentDirection == WorldSpatial.Direction.EAST) {
+						turnRight();
+					}
+					else if (currentDirection == WorldSpatial.Direction.WEST) {
 						turnLeft();
 					}
-					
-					if (parcelCoord.y > currentPosition.y) {
+				}
+			}
+			
+			if (directionOfParcelOnY == null) {
+				if (currentPosition.x < parcelCoord.x) {
+					if (currentDirection == WorldSpatial.Direction.NORTH) {
+						turnRight();
+					}
+					else if (currentDirection == WorldSpatial.Direction.SOUTH) {
 						turnLeft();
 					}
-					else if (parcelCoord.y < currentPosition.y) {
+				}
+				
+				if (currentPosition.x > parcelCoord.x) {
+					if (currentDirection == WorldSpatial.Direction.NORTH) {
+						turnLeft();
+					}
+					else if (currentDirection == WorldSpatial.Direction.SOUTH) {
 						turnRight();
 					}
 				}
