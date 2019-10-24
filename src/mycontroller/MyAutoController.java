@@ -1,15 +1,26 @@
 package mycontroller;
 
 import controller.CarController;
+import mycontroller.FindPath.coordinateSystem;
 import world.Car;
+
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.PriorityQueue;
 
 import tiles.MapTile;
 import utilities.Coordinate;
 import world.WorldSpatial;
+import world.WorldSpatial.Direction;
 
-public class MyAutoController extends CarController{		
+public class MyAutoController extends CarController{	
+	
+		private enum drivingMode { SEARCHING, APPROACHING };
+		
+		private enum relativeDirection {FRONT, BACK, LEFT, RIGHT, ORIGIN};
+		
+		private drivingMode currentMode = drivingMode.SEARCHING;
 		// How many minimum units the wall is away from the player.
 		private int wallSensitivity = 1;
 		
@@ -18,7 +29,11 @@ public class MyAutoController extends CarController{
 		// Car Speed to move at
 		private final int CAR_MAX_SPEED = 1;
 		
-		private Coordinate targetPosition;
+		private Coordinate parcelPosition;
+		
+		private FindPath pathFinder = new FindPath();
+		
+		private ArrayList<Coordinate> blackList = new ArrayList<Coordinate>();
 		
 		public MyAutoController(Car car) {
 			super(car);
@@ -31,37 +46,65 @@ public class MyAutoController extends CarController{
 			// Gets what the car can see
 			HashMap<Coordinate, MapTile> currentView = getView();
 			Iterator iter = currentView.entrySet().iterator();
+			Coordinate currentPosition = new Coordinate(getPosition());
+			ArrayList<coordinateSystem> path = new ArrayList<FindPath.coordinateSystem>();
 			
+			//detect the parcel
+			//============================================================
 			while (iter.hasNext()) {
 				HashMap.Entry entry = (HashMap.Entry) iter.next();
 				Coordinate coord = (Coordinate)entry.getKey();
 				MapTile tile = (MapTile) entry.getValue();
-				if (tile.getType() == MapTile.Type.TRAP) {
-					targetPosition = coord;
+				if (tile.getType() == MapTile.Type.TRAP && blackList.contains(parcelPosition) == false) {
+					parcelPosition = coord;
+					currentMode = drivingMode.APPROACHING;
 					System.out.printf("Parcel found\n");
 					break;
 				}
 				else {
-					targetPosition = null;
+					//targetPosition = null;
+					//currentMode = drivingMode.SEARCHING;
 					//System.out.printf("Parcel not found\n");
 				}
 			}
+			//==============================================================
 			
 			// checkStateChange();
-			if(getSpeed() < CAR_MAX_SPEED){       // Need speed to turn and progress toward the exit
-				applyForwardAcceleration();   // Tough luck if there's a wall in the way
-			}
+			//if(getSpeed() < CAR_MAX_SPEED){       // Need speed to turn and progress toward the exit
+				//applyForwardAcceleration();   // Tough luck if there's a wall in the way
+			//}
+			//===============================================================
 			
-			if (targetPosition != null) {
+			if (currentMode == drivingMode.APPROACHING) {
 				System.out.printf("======APROCHING MODE=======\n");
-				moveToParcel(targetPosition, currentView);
+				System.out.printf("target: ( %d, %d )\n", parcelPosition.x, parcelPosition.y);
+				if(getSpeed() >= CAR_MAX_SPEED){       // Need speed to turn and progress toward the exit
+					//applyBrake();   // Tough luck if there's a wall in the way
+				}
+				path = pathFinder.findPath(currentPosition.x, currentPosition.y, parcelPosition.x, parcelPosition.y);
 				
-				System.out.printf("-------------%s----------------\n", isFollowingWall);
-				
-				//System.out.printf("!!!!!!!!!!!");
+				if (path != null) {
+					for (coordinateSystem coordSystem : path) {
+						System.out.printf("(%d, %d) -> ", coordSystem.coordinate.x, coordSystem.coordinate.y);
+					}
+					
+					System.out.print("\n");
+					
+					moveToParcel(path);
+					isFollowingWall = false;
+					
+					
+				}
+				else {
+					blackList.add(parcelPosition);
+					PickUpParcel();
+				}
 			}
-			else {
+			else if (currentMode == drivingMode.SEARCHING){
 				System.out.printf("======SEARCHING MODE=======\n");
+				if(getSpeed() < CAR_MAX_SPEED){       // Need speed to turn and progress toward the exit
+					applyForwardAcceleration();   // Tough luck if there's a wall in the way
+				}
 				if (isFollowingWall) {
 					System.out.printf("===Following===\n");
 					// If wall no longer on left, turn left
@@ -83,86 +126,75 @@ public class MyAutoController extends CarController{
 				}
 			}
 		}
+		//========================================================================
 		
-		private void moveToParcel(Coordinate parcelCoord, HashMap<Coordinate, MapTile> currentView) {
-			WorldSpatial.Direction directionOfParcelOnX = null;
-			WorldSpatial.Direction directionOfParcelOnY = null;
-			WorldSpatial.Direction currentDirection = getOrientation();
+		private relativeDirection getRelativeDirection(Direction d, Coordinate targetPosition) {
+			Coordinate currentPositon = new Coordinate(getPosition());
+			switch (d) {
+			case NORTH:
+				if (targetPosition.x > currentPositon.x) {return relativeDirection.RIGHT;}
+				if (targetPosition.x < currentPositon.x) {return relativeDirection.LEFT;}
+				if (targetPosition.y > currentPositon.y) {return relativeDirection.FRONT;}
+				if (targetPosition.y < currentPositon.y) {return relativeDirection.BACK;}
+				if (targetPosition.x == currentPositon.x && targetPosition.y == currentPositon.y) {return relativeDirection.ORIGIN;}
+			case SOUTH:
+				if (targetPosition.x > currentPositon.x) {return relativeDirection.LEFT;}
+				if (targetPosition.x < currentPositon.x) {return relativeDirection.RIGHT;}
+				if (targetPosition.y > currentPositon.y) {return relativeDirection.BACK;}
+				if (targetPosition.y < currentPositon.y) {return relativeDirection.FRONT;}
+				if (targetPosition.x == currentPositon.x && targetPosition.y == currentPositon.y) {return relativeDirection.ORIGIN;}
+			case WEST:
+				if (targetPosition.x > currentPositon.x) {return relativeDirection.BACK;}
+				if (targetPosition.x < currentPositon.x) {return relativeDirection.FRONT;}
+				if (targetPosition.y > currentPositon.y) {return relativeDirection.RIGHT;}
+				if (targetPosition.y < currentPositon.y) {return relativeDirection.LEFT;}
+				if (targetPosition.x == currentPositon.x && targetPosition.y == currentPositon.y) {return relativeDirection.ORIGIN;}
+			case EAST:
+				if (targetPosition.x > currentPositon.x) {return relativeDirection.FRONT;}
+				if (targetPosition.x < currentPositon.x) {return relativeDirection.BACK;}
+				if (targetPosition.y > currentPositon.y) {return relativeDirection.LEFT;}
+				if (targetPosition.y < currentPositon.y) {return relativeDirection.RIGHT;}
+				if (targetPosition.x == currentPositon.x && targetPosition.y == currentPositon.y) {return relativeDirection.ORIGIN;}
+
+			default:
+				return relativeDirection.ORIGIN;
+			}
+		}
+		
+		private void moveToParcel(ArrayList<coordinateSystem> path) {
 			Coordinate currentPosition = new Coordinate(getPosition());
 			
-			if (currentPosition.x < parcelCoord.x) {
-				directionOfParcelOnX = WorldSpatial.Direction.EAST;
-			}
-			else if (currentPosition.x > parcelCoord.x) {
-				directionOfParcelOnX = WorldSpatial.Direction.WEST;
-			}
+			Coordinate targetCoordinate = path.get(1).coordinate;
 			
-			if (currentPosition.y < parcelCoord.y) {
-				directionOfParcelOnY = WorldSpatial.Direction.NORTH;
-			}
-			else if (currentPosition.y > parcelCoord.y) {
-				directionOfParcelOnY = WorldSpatial.Direction.SOUTH;
-			}
+			relativeDirection directionOfTarget = getRelativeDirection(getOrientation(), targetCoordinate);
 			
-			if (checkWallAhead(currentDirection, currentView) && !checkFollowingWall(currentDirection, currentView) && !checkWallOnRight(currentDirection, currentView)) {
+			System.out.printf("next point: (%d, %d) at %s\n", targetCoordinate.x, targetCoordinate.y, directionOfTarget.toString());
+			
+			switch (directionOfTarget) {
+			case FRONT:
+				System.out.println("MOVING FORWARD");
+				break;
+			case LEFT:
+				System.out.println("TURNING LEFT");
 				turnLeft();
-				isFollowingWall = false;
-			}
-			if (checkWallAhead(currentDirection, currentView) && checkFollowingWall(currentDirection, currentView)) {
+				break;
+			case RIGHT:
+				System.out.println("TURNING RIGHT");
 				turnRight();
-				isFollowingWall = true;
-			}
-			if (checkWallAhead(currentDirection, currentView) && checkWallOnRight(currentDirection, currentView)) {
-				turnLeft();
-			}
-			
-			if (directionOfParcelOnX == null) {
-				if (currentPosition.y < parcelCoord.y) {
-					if (currentDirection == WorldSpatial.Direction.EAST && checkFollowingWall(currentDirection, currentView) == false) {
-						turnLeft();
-						isFollowingWall = false;
-					}
-					else if (currentDirection == WorldSpatial.Direction.WEST && checkWallOnRight(currentDirection, currentView) == false) {
-						turnRight();
-						isFollowingWall = false;
-					}
-				}
+				break;
+			case BACK:
+				break;
+			case ORIGIN:
+				break;
+			default:
+				break;
 				
-				if (currentPosition.y > parcelCoord.y) {
-					if (currentDirection == WorldSpatial.Direction.EAST && checkWallOnRight(currentDirection, currentView) == false) {
-						turnRight();
-						isFollowingWall = false;
-					}
-					else if (currentDirection == WorldSpatial.Direction.WEST && checkFollowingWall(currentDirection, currentView) == false) {
-						turnLeft();
-						isFollowingWall = false;
-					}
-				}
 			}
-			
-			if (directionOfParcelOnY == null) {
-				if (currentPosition.x < parcelCoord.x) {
-					if (currentDirection == WorldSpatial.Direction.NORTH && checkWallOnRight(currentDirection, currentView) == false) {
-						turnRight();
-						isFollowingWall = false;
-					}
-					else if (currentDirection == WorldSpatial.Direction.SOUTH && checkFollowingWall(currentDirection, currentView) == false) {
-						turnLeft();
-						isFollowingWall = false;
-					}
-				}
-				
-				if (currentPosition.x > parcelCoord.x) {
-					if (currentDirection == WorldSpatial.Direction.NORTH && checkFollowingWall(currentDirection, currentView) == false) {
-						turnLeft();
-						isFollowingWall = false;
-					}
-					else if (currentDirection == WorldSpatial.Direction.SOUTH && checkWallOnRight(currentDirection, currentView) == false) {
-						turnRight();
-						isFollowingWall = false;
-					}
-				}
-			}
+		}
+		
+		private void PickUpParcel() {
+			this.parcelPosition = null;
+			this.currentMode = drivingMode.SEARCHING;
 		}
 
 		/**
