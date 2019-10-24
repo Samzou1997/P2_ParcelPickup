@@ -55,7 +55,7 @@ public class MyAutoController extends CarController{
 				HashMap.Entry entry = (HashMap.Entry) iter.next();
 				Coordinate coord = (Coordinate)entry.getKey();
 				MapTile tile = (MapTile) entry.getValue();
-				if (tile.getType() == MapTile.Type.TRAP && blackList.contains(parcelPosition) == false) {
+				if (tile.getType() == MapTile.Type.TRAP && blackList.contains(coord) == false) {
 					parcelPosition = coord;
 					currentMode = drivingMode.APPROACHING;
 					System.out.printf("Parcel found\n");
@@ -99,6 +99,12 @@ public class MyAutoController extends CarController{
 					blackList.add(parcelPosition);
 					PickUpParcel();
 				}
+				
+				System.out.print("BLACK LIST: ");
+				for (Coordinate coordinate : blackList) {
+					System.out.printf("(%d, %d)", coordinate.x, coordinate.y);
+				}
+				System.out.print("\n");
 			}
 			else if (currentMode == drivingMode.SEARCHING){
 				System.out.printf("======SEARCHING MODE=======\n");
@@ -120,8 +126,13 @@ public class MyAutoController extends CarController{
 					System.out.printf("===NOT Following===\n");
 					// Start wall-following (with wall on left) as soon as we see a wall straight ahead
 					if(checkWallAhead(getOrientation(),currentView)) {
-						turnRight();
-						isFollowingWall = true;
+						if (checkWallOnRight(getOrientation(), currentView)) {
+							turnLeft();
+						}
+						else {
+							turnRight();
+							isFollowingWall = true;
+						}
 					}
 				}
 			}
@@ -162,7 +173,6 @@ public class MyAutoController extends CarController{
 		}
 		
 		private void moveToParcel(ArrayList<coordinateSystem> path) {
-			Coordinate currentPosition = new Coordinate(getPosition());
 			
 			Coordinate targetCoordinate = path.get(1).coordinate;
 			
