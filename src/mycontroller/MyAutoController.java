@@ -33,7 +33,7 @@ public class MyAutoController extends CarController{
 		
 		private FindPath pathFinder = new FindPath();
 		
-		private ArrayList<Coordinate> blackList = new ArrayList<Coordinate>();
+		private ArrayList<Coordinate> blackList = new ArrayList<Coordinate>();// Store the position of parcel which is at a unreachable location.
 		
 		public MyAutoController(Car car) {
 			super(car);
@@ -48,52 +48,33 @@ public class MyAutoController extends CarController{
 			Coordinate currentPosition = new Coordinate(getPosition());
 			ArrayList<CoordinateSystem> path = new ArrayList<FindPath.CoordinateSystem>();
 			
-			RadarDetection(currentView);
+			RadarDetection(currentView); // Gets the parcel from the detection area
 			
-			//==============================================================
-			
-			// checkStateChange();
-			//if(getSpeed() < CAR_MAX_SPEED){       // Need speed to turn and progress toward the exit
-				//applyForwardAcceleration();   // Tough luck if there's a wall in the way
-			//}
-			//===============================================================
-			
+			// if the parcel is in the detection area
 			if (currentMode == drivingMode.APPROACHING) {
-				//System.out.printf("======APROCHING MODE=======\n");
-				//System.out.printf("target: ( %d, %d )\n", parcelPosition.x, parcelPosition.y);
-				if(getSpeed() >= CAR_MAX_SPEED){       // Need speed to turn and progress toward the exit
-					//applyBrake();   // Tough luck if there's a wall in the way
-				}
+				
+				// find the path from current position to the parcel position
 				path = pathFinder.findPath(currentPosition.x, currentPosition.y, parcelPosition.x, parcelPosition.y);
 				
+				// if the parcel is reachable
 				if (path != null) {
-					for (CoordinateSystem coordSystem : path) {
-						//System.out.printf("(%d, %d) -> ", coordSystem.coordinate.x, coordSystem.coordinate.y);
-					}
-					
-					//System.out.print("\n");
-					
 					moveToParcel(path);
 					isFollowingWall = false;
-					
-					
 				}
+				// if the parcel is unreachable
 				else {
 					blackList.add(parcelPosition);
 					PickUpParcel();
 				}
-				
-				//System.out.print("BLACK LIST: ");
-				for (Coordinate coordinate : blackList) {
-					System.out.printf("(%d, %d)", coordinate.x, coordinate.y);
-				}
-				//System.out.print("\n");
 			}
+			
+			// if there is no parcel in the detection area
 			else if (currentMode == drivingMode.SEARCHING){
+				// search around the map
 				Searching(currentView);
 			}
 		}
-		//========================================================================
+		
 		
 		private relativeDirection getRelativeDirection(Direction d, Coordinate targetPosition) {
 			Coordinate currentPositon = new Coordinate(getPosition());
@@ -134,8 +115,6 @@ public class MyAutoController extends CarController{
 			
 			relativeDirection directionOfTarget = getRelativeDirection(getOrientation(), targetCoordinate);
 			
-			//System.out.printf("next point: (%d, %d) at %s\n", targetCoordinate.x, targetCoordinate.y, directionOfTarget.toString());
-			
 			switch (directionOfTarget) {
 			case FRONT:
 				System.out.println("MOVING FORWARD");
@@ -159,12 +138,10 @@ public class MyAutoController extends CarController{
 		}
 		
 		private void Searching(HashMap<Coordinate, MapTile> currentView) {
-			//System.out.printf("======SEARCHING MODE=======\n");
 			if(getSpeed() < CAR_MAX_SPEED){       // Need speed to turn and progress toward the exit
 				applyForwardAcceleration();   // Tough luck if there's a wall in the way
 			}
 			if (isFollowingWall) {
-				//System.out.printf("===Following===\n");
 				// If wall no longer on left, turn left
 				if(!checkFollowingWall(getOrientation(), currentView)) {
 					turnLeft();
@@ -175,7 +152,6 @@ public class MyAutoController extends CarController{
 					}
 				}
 			} else {
-				//System.out.printf("===NOT Following===\n");
 				// Start wall-following (with wall on left) as soon as we see a wall straight ahead
 				if(checkWallAhead(getOrientation(),currentView)) {
 					if (checkWallOnRight(getOrientation(), currentView)) {
@@ -196,10 +172,6 @@ public class MyAutoController extends CarController{
 		
 		private void RadarDetection(HashMap<Coordinate, MapTile> currentView) {
 			Iterator iter = currentView.entrySet().iterator();
-			
-			
-			//detect the parcel
-			//============================================================
 			while (iter.hasNext()) {
 				HashMap.Entry entry = (HashMap.Entry) iter.next();
 				Coordinate coord = (Coordinate)entry.getKey();
@@ -207,7 +179,6 @@ public class MyAutoController extends CarController{
 				if (tile.getType() == MapTile.Type.TRAP && blackList.contains(coord) == false) {
 					parcelPosition = coord;
 					currentMode = drivingMode.APPROACHING;
-					//System.out.printf("Parcel found\n");
 					break;
 				}
 			}
