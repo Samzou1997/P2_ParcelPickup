@@ -117,14 +117,11 @@ public class MyAutoController extends CarController{
 			
 			switch (directionOfTarget) {
 			case FRONT:
-				System.out.println("MOVING FORWARD");
 				break;
 			case LEFT:
-				System.out.println("TURNING LEFT");
 				turnLeft();
 				break;
 			case RIGHT:
-				System.out.println("TURNING RIGHT");
 				turnRight();
 				break;
 			case BACK:
